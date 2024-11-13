@@ -63,7 +63,7 @@ def load_data(file_path):
     return df.reset_index(drop=True)
 
 # Load data
-all_df = load_data("D:/Dataanalyst/python/baru/latihan/project/hour.csv")
+all_df = load_data("hour.csv")
 
 
 # Convert dteday to datetime
