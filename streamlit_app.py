@@ -63,7 +63,7 @@ def load_data(file_path):
     return df.reset_index(drop=True)
 
 # Load data
-all_df = load_data("hour.csv")
+all_df = load_data("D:/Dataanalyst/python/baru/latihan/project/hour.csv")
 
 
 # Convert dteday to datetime
@@ -317,81 +317,28 @@ Based on the results of the analysis, the following results was:
    - Pay special attention to bike maintenance during extreme weather seasons
 """)
 
-# 1. Data Loading and Preprocessing
-main_df = all_df[
-    (all_df["dteday"].dt.date >= start_date) &
-    (all_df["dteday"].dt.date <= end_date)
-]
+def load_and_preprocess(df, start_date, end_date):
+    """Load and preprocess the data"""
+    main_df = df[
+        (df["dteday"].dt.date >= start_date) &
+        (df["dteday"].dt.date <= end_date)
+    ]
+    
+    daily_df = main_df.resample('D', on='dteday').agg({
+        'cnt': 'sum'
+    }).reset_index()
+    return daily_df.set_index('dteday')['cnt']
 
-# Generate daily aggregation
-daily_df = main_df.resample('D', on='dteday').agg({
-    'cnt': 'sum'
-}).reset_index()
-data = daily_df.set_index('dteday')['cnt']
-
-st.header('Time Series Analysis ﾟ ⋆ ﾟ ☂︎  ﾟ ⋆ ﾟ ⋆ ')
-
-# 2. Stationarity Analysis Functions
-def check_stationarity(data, title=""):
-    """
-    Perform ADF test and create stationarity plots
-    """
-    # Perform ADF test
-    result = adfuller(data)
-    
-    st.subheader("Augmented Dickey-Fuller Test Results")
-    
-    # Print ADF test results
-    adf_output = pd.Series({
-        'Test Statistic': result[0],
-        'p-value': result[1],
-        '1% Critical Value': result[4]['1%'],
-        '5% Critical Value': result[4]['5%'],
-        '10% Critical Value': result[4]['10%']
-    })
-    
-    st.write(adf_output)
-    
-    # Interpret results
-    if result[1] < 0.05:
-        st.success("Data is stationary (reject H0)")
-    else:
-        st.warning("Data is non-stationary (fail to reject H0)")
-    
-    # Create visualization
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(15, 10))
-    
-    # Time series plot
-    ax1.plot(data)
-    ax1.set_title(f'Time Series Plot: {title}')
-    ax1.set_xlabel('Date')
-    ax1.set_ylabel('Number of Rentals')
-    ax1.grid(True)
-    
-    # Rolling statistics
-    rolling_mean = data.rolling(window=7).mean()
-    rolling_std = data.rolling(window=7).std()
-    
-    ax2.plot(data, label='Original')
-    ax2.plot(rolling_mean, label='Rolling Mean')
-    ax2.plot(rolling_std, label='Rolling Std')
-    ax2.set_title('Rolling Statistics')
-    ax2.set_xlabel('Date')
-    ax2.legend()
-    ax2.grid(True)
-    
-    plt.tight_layout()
-    st.pyplot(fig)
-    
-    return result[1] < 0.05
+def calculate_moving_averages(data):
+    """Calculate different moving averages"""
+    ma7 = data.rolling(window=7, center=True).mean()
+    ma30 = data.rolling(window=30, center=True).mean()
+    return ma7, ma30
 
 def perform_decomposition(data):
-    """
-    Perform seasonal decomposition
-    """
-    decomposition = seasonal_decompose(data, period=7)
+    """Perform seasonal decomposition"""
+    decomposition = seasonal_decompose(data, period=7, extrapolate_trend='freq')
     
-    # Plot decomposition
     fig, (ax1, ax2, ax3, ax4) = plt.subplots(4, 1, figsize=(15, 12))
     
     decomposition.observed.plot(ax=ax1)
@@ -411,248 +358,187 @@ def perform_decomposition(data):
     ax4.grid(True)
     
     plt.tight_layout()
-    st.pyplot(fig)
-    
-    return decomposition
+    return fig, decomposition
 
-# 3. Perform Stationarity Analysis
-st.subheader("Original Data Analysis")
-is_stationary = check_stationarity(data, "Original Data")
-
-# If data is not stationary, perform differencing
-if not is_stationary:
-    st.subheader("First Difference Analysis")
-    diff_data = data.diff().dropna()
-    is_stationary_diff = check_stationarity(diff_data, "First Difference")
-    
-    # If still not stationary, try seasonal differencing
-    if not is_stationary_diff:
-        st.subheader("Seasonal Difference Analysis")
-        seasonal_diff = diff_data.diff(7).dropna()  # 7 for weekly seasonality
-        is_stationary_seasonal = check_stationarity(seasonal_diff, "Seasonal Difference")
-
-# 4. Perform Decomposition
-st.subheader("Seasonal Decomposition")
-decomp = perform_decomposition(data)
-
-# 5. SARIMA Model Functions
-def fit_sarima_model(data):
+def calculate_confidence_interval(data, forecast, days_ahead):
     """
-    Fit SARIMA model with parameters based on stationarity analysis
+    Calculate more realistic confidence intervals based on historical error
     """
-    # Adjust these parameters based on the ADF test results
-    if is_stationary:
-        order = (1, 0, 1)
-        seasonal_order = (1, 0, 1, 7)
-    elif is_stationary_diff:
-        order = (1, 1, 1)
-        seasonal_order = (1, 0, 1, 7)
-    else:
-        order = (1, 1, 1)
-        seasonal_order = (1, 1, 1, 7)
+    # Calculate historical prediction error based on moving average
+    ma7 = data.rolling(window=7).mean()
+    historical_errors = (data - ma7).dropna()
     
-    model = SARIMAX(data,
-                    order=order,
-                    seasonal_order=seasonal_order,
-                    enforce_stationarity=False,
-                    enforce_invertibility=False)
+    # Error typically increases with forecast horizon
+    error_growth_factor = np.sqrt(days_ahead)
     
-    return model.fit()
-
-def evaluate_model(actual, predicted):
-    """
-    Calculate evaluation metrics
-    """
-    mae = mean_absolute_error(actual, predicted)
-    mse = mean_squared_error(actual, predicted)
-    rmse = np.sqrt(mse)
+    # Calculate error margins based on historical errors
+    error_margin = historical_errors.std() * error_growth_factor
     
-    return {
-        'MAE': mae,
-        'MSE': mse,
-        'RMSE': rmse
-    }
-
-# 6. Fit Model and Make Predictions
-st.subheader("Fitting SARIMA Model")
-with st.spinner('Fitting SARIMA Model...'):
-    model_results = fit_sarima_model(data)
-    predictions = model_results.get_prediction(start=data.index[0])
-    predicted_mean = predictions.predicted_mean
-    pred_conf = predictions.conf_int()
-
-# 7. Display Results
-# Model summary
-with st.expander("View Model Summary"):
-    st.text(str(model_results.summary()))
-
-# Calculate and display metrics
-metrics = evaluate_model(data, predicted_mean)
-col1, col2, col3 = st.columns(3)
-with col1:
-    st.metric("MAE", f"{metrics['MAE']:.2f}")
-with col2:
-    st.metric("MSE", f"{metrics['MSE']:.2f}")
-with col3:
-    st.metric("RMSE", f"{metrics['RMSE']:.2f}")
-
-# 8. Plot Results
-# st.subheader('Bike Sharing Demand Analysis with SARIMA')
-fig, ax = plt.subplots(figsize=(16, 8))
-
-# Plot actual values
-ax.plot(data.index, data, label='Actual', color='blue')
-
-# Plot predicted values
-ax.plot(predicted_mean.index, predicted_mean, label='Predicted', color='red', linestyle='--')
-
-# Plot confidence intervals
-ax.fill_between(pred_conf.index,
-                pred_conf.iloc[:, 0],
-                pred_conf.iloc[:, 1],
-                color='red',
-                alpha=0.1,
-                label='95% Confidence Interval')
-
-# Customize plot
-ax.set_title("Bike Sharing Demand: Actual vs Predicted (SARIMA)", fontsize=20)
-ax.set_xlabel("Date", fontsize=15)
-ax.set_ylabel("Number of Rentals", fontsize=15)
-ax.legend(fontsize=12)
-ax.grid(True)
-plt.xticks(rotation=45)
-
-# Display plot
-st.pyplot(fig)
-
-data = pd.DataFrame(all_df)  # Replace with your data loading method
-column = 'cnt'
-
-# Function for differencing analysis
-def perform_differencing_analysis(data, column='cnt', max_diff=2):
-    fig, axes = plt.subplots(max_diff + 1, 2, figsize=(15, 4*(max_diff+1)))
+    # Scale down the margin for more realistic bounds
+    scaling_factor = 0.5  # Adjust this value to control interval width
+    error_margin = error_margin * scaling_factor
     
-    # Original series analysis
-    series = data[column].copy()
-    result = adfuller(series)
+    lower_bound = forecast - error_margin
+    upper_bound = forecast + error_margin
     
-    # Plot original series
-    axes[0, 0].plot(series)
-    axes[0, 0].set_title(f'Original Series (ADF p-value: {result[1]:.4f})')
-    axes[0, 0].set_xlabel('Time')
-    axes[0, 0].set_ylabel('Value')
+    # Ensure lower bound isn't negative
+    lower_bound = max(0, lower_bound)
     
-    # Plot ACF of original series
-    pd.plotting.autocorrelation_plot(series, ax=axes[0, 1])
-    axes[0, 1].set_title('ACF of Original Series')
+    return lower_bound, upper_bound
+
+def make_simple_forecast(data, forecast_steps):
+    """Make simple forecast using historical averages and trends"""
+    # Calculate average daily change over the last 30 days
+    last_30_days = data[-30:]
+    daily_changes = last_30_days.diff()
+    avg_daily_change = daily_changes.mean()
     
-    # Perform differencing
-    for d in range(1, max_diff + 1):
-        diff_series = series.diff(d).dropna()
-        result = adfuller(diff_series)
+    # Calculate weekly pattern
+    weekly_pattern = data.groupby(data.index.dayofweek).mean()
+    
+    # Get the last value
+    last_value = data.iloc[-1]
+    
+    # Create forecast dates
+    last_date = data.index[-1]
+    forecast_dates = pd.date_range(start=last_date + pd.Timedelta(days=1), 
+                                 periods=forecast_steps, 
+                                 freq='D')
+    
+    # Generate forecasts
+    forecasts = []
+    current_value = last_value
+    
+    for date in forecast_dates:
+        # Add trend
+        current_value += avg_daily_change
         
-        # Plot differenced series
-        axes[d, 0].plot(diff_series)
-        axes[d, 0].set_title(f'{d}-Order Difference (ADF p-value: {result[1]:.4f})')
-        axes[d, 0].set_xlabel('Time')
-        axes[d, 0].set_ylabel('Value')
+        # Add weekly pattern adjustment
+        day_of_week = date.dayofweek
+        weekly_adjustment = weekly_pattern[day_of_week] - weekly_pattern.mean()
         
-        # Plot ACF of differenced series
-        pd.plotting.autocorrelation_plot(diff_series, ax=axes[d, 1])
-        axes[d, 1].set_title(f'ACF of {d}-Order Difference')
+        # Calculate forecast
+        forecast_value = current_value + weekly_adjustment
+        
+        # Ensure no negative values
+        forecast_value = max(0, forecast_value)
+        
+        forecasts.append(forecast_value)
     
-    plt.tight_layout()
+    return pd.Series(forecasts, index=forecast_dates)
+
+def plot_results(data, ma7, ma30, forecast, confidence_intervals):
+    """Plot the results"""
+    fig, ax = plt.subplots(figsize=(15, 8))
+    
+    # Plot actual values and moving averages
+    ax.plot(data.index, data, label='Actual', alpha=0.5)
+    ax.plot(ma7.index, ma7, label='7-day MA', linewidth=2)
+    ax.plot(ma30.index, ma30, label='30-day MA', linewidth=2)
+    
+    # Plot forecast and confidence intervals
+    if forecast is not None:
+        ax.plot(forecast.index, forecast, label='Forecast', 
+                color='red', linestyle='--')
+        
+        # Plot confidence intervals
+        lower_bounds, upper_bounds = zip(*confidence_intervals)
+        ax.fill_between(forecast.index, lower_bounds, upper_bounds, 
+                       color='red', alpha=0.1, label='95% Confidence Interval')
+    
+    ax.set_title('Bike Sharing Demand Analysis', fontsize=16)
+    ax.set_xlabel('Date', fontsize=12)
+    ax.set_ylabel('Number of Rentals', fontsize=12)
+    ax.legend()
+    ax.grid(True)
+    
     return fig
 
-st.write (""" Dikarenakan tingkat akurasi time series masih kurang akurat dimana Mean Absolute Error ada diangka 638.94 dan Root Mean Squared Error sebesar 918.56
-          maka perlu dilakukan diferencing analisis, adf test, dan fitting ke model Sarima yang baru.
-          """)
+# Main Streamlit app
+st.title('Simple Time Series Analysis 🚲')
 
-# Streamlit App
-st.title("Time Series Analysis")
+# Load data
+data = load_and_preprocess(all_df, start_date, end_date)
 
-# Input options
-max_diff = st.sidebar.slider("Select maximum differencing order", 1, 5, 2)
-forecast_steps = st.sidebar.slider("Forecast Steps", 1, 24, 12)
+# Calculate moving averages
+ma7, ma30 = calculate_moving_averages(data)
 
-# Perform differencing analysis
-st.subheader("Differencing Analysis")
-fig_diff = perform_differencing_analysis(data, column=column, max_diff=max_diff)
-st.pyplot(fig_diff)
+# Display basic statistics
+st.subheader('Basic Statistics')
+col1, col2, col3, col4 = st.columns(4)
+with col1:
+    st.metric("Average Daily Rentals", f"{data.mean():.0f}")
+with col2:
+    st.metric("Maximum Rentals", f"{data.max():.0f}")
+with col3:
+    st.metric("Minimum Rentals", f"{data.min():.0f}")
+with col4:
+    st.metric("Standard Deviation", f"{data.std():.0f}")
 
-# Stationarity Tests (ADF)
-st.subheader("ADF Stationarity Test Results")
-for d in range(3):
-    if d == 0:
-        series = data[column]
-    else:
-        series = data[column].diff(d).dropna()
-    
-    result = adfuller(series)
-    st.write(f"\n{d}-Order Difference" if d > 0 else "Original Series:")
-    st.write(f"ADF Statistic: {result[0]:.4f}")
-    st.write(f"p-value: {result[1]:.4f}")
-    st.write("Critical values:")
-    for key, value in result[4].items():
-        st.write(f"\t{key}: {value:.4f}")
+# Weekly pattern analysis
+st.subheader('Weekly Pattern Analysis')
+weekly_avg = data.groupby(data.index.dayofweek).mean()
+weekly_std = data.groupby(data.index.dayofweek).std()
+days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
-# SARIMA Model Fitting
-st.subheader("SARIMA Model Fitting")
-order = (1, 0, 1)
-seasonal_order = (1, 0, 1, 12)
-
-model = SARIMAX(data[column], order=order, seasonal_order=seasonal_order, enforce_stationarity=False, enforce_invertibility=False)
-sarima_fit = model.fit(disp=False)
-
-# Display Model Summary
-st.write(sarima_fit.summary())
-
-# Diagnostic Plots
-st.subheader("SARIMA Diagnostic Plots")
-fig_diag = sarima_fit.plot_diagnostics(figsize=(15, 8))
-st.pyplot(fig_diag)
-
-# Forecasting
-st.subheader("Forecast Results")
-forecast = sarima_fit.get_forecast(steps=forecast_steps)
-forecast_mean = forecast.predicted_mean
-forecast_ci = forecast.conf_int()
-
-# Evaluation Metrics
-st.subheader("Evaluation Metrics")
-# Select data to compare forecasted values
-actual = data[column][-forecast_steps:]  # Adjust for available data if shorter
-if len(actual) >= forecast_steps:
-    actual = actual[-forecast_steps:]  # Adjust to match forecast steps if necessary
-
-# Calculate MAE, MSE, RMSE
-mae = mean_absolute_error(actual, forecast_mean)
-mse = mean_squared_error(actual, forecast_mean)
-rmse = np.sqrt(mse)
-
-# Display Metrics
-st.write(f"**Mean Absolute Error (MAE):** {mae:.2f}")
-st.write(f"**Mean Squared Error (MSE):** {mse:.2f}")
-st.write(f"**Root Mean Squared Error (RMSE):** {rmse:.2f}")
-
-# Plot actual vs predicted
-fig_forecast = plt.figure(figsize=(15, 6))
-plt.plot(data.index, data[column], label='Actual', color='blue')
-plt.plot(forecast_mean.index, forecast_mean, label='Predicted', color='red')
-plt.fill_between(forecast_ci.index, forecast_ci.iloc[:, 0], forecast_ci.iloc[:, 1], color='pink', alpha=0.3)
-plt.title('Actual vs Predicted Bike Rentals')
-plt.xlabel('Date')
+fig_weekly = plt.figure(figsize=(12, 6))
+plt.bar(days, weekly_avg, yerr=weekly_std, capsize=5)
+plt.title('Average Daily Rentals by Day of Week')
 plt.ylabel('Number of Rentals')
-plt.legend()
-st.pyplot(fig_forecast)
+plt.xticks(rotation=45)
+st.pyplot(fig_weekly)
 
-actual = all_df['cnt'][-forecast_steps:]
-predicted = forecast_mean
+# Perform decomposition
+st.subheader('Seasonal Decomposition')
+decomp_fig, decomposition = perform_decomposition(data)
+st.pyplot(decomp_fig)
 
-st.write("**Nilai Prediksi:**")
-for idx, value in zip(predicted.index, predicted):
-    st.write(f"Date: {idx}, Predicted: {value:.2f}")
+# Make forecast
+forecast_steps = st.slider('Forecast Days', 1, 30, 7)
+forecast = make_simple_forecast(data, forecast_steps)
 
+# Calculate confidence intervals for all forecast points
+confidence_intervals = [
+    calculate_confidence_interval(data, value, i+1) 
+    for i, value in enumerate(forecast)
+]
+
+# Plot results
+st.subheader('Time Series Analysis')
+results_fig = plot_results(data, ma7, ma30, forecast, confidence_intervals)
+st.pyplot(results_fig)
+
+# Display forecast values
+st.subheader('Forecast Values')
+for i, (date, value) in enumerate(forecast.items(), 1):
+    lower_bound, upper_bound = confidence_intervals[i-1]
+    interval_width = upper_bound - lower_bound
+    
+    st.write(f"""
+    **{date.strftime('%A, %B %d, %Y')}**
+    - Predicted Rentals: {value:.0f}
+    - Likely Range: {lower_bound:.0f} to {upper_bound:.0f} rentals
+    - Interval Width: ±{(interval_width/2):.0f} rentals from predicted value
+    """)
+
+# Display additional insights
+st.subheader('Additional Insights')
+best_day = days[weekly_avg.argmax()]
+worst_day = days[weekly_avg.argmin()]
+best_value = weekly_avg.max()
+worst_value = weekly_avg.min()
+
+st.write(f"""
+- Days with the highest average rentals: {best_day} ({best_value:.0f} rentals)
+- Days with the lowest average rentals: {worst_day} ({worst_value:.0f} rentals)
+- Variasi harian: {(weekly_avg.max() - weekly_avg.min()):.0f} rentals
+""")
+
+# Calculate and display trend
+recent_trend = data[-30:].mean() - data[-60:-30].mean()
+st.write(f"""
+Trends of the last 30 days: {'Down' if recent_trend > 0 else 'Increase'} in the amount of {abs(recent_trend):.0f} rentals
+""")
 
 
 
