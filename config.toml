@@ -1,0 +1,16 @@
+# config.toml
+
+# Batasi ulang halaman setiap kali terjadi perubahan
+[server]
+headless = true                # Wajib diaktifkan saat deploy di Streamlit Cloud
+maxUploadSize = 200            # Mengatur ukuran maksimal file upload (dalam MB)
+
+# Caching
+[cache]
+# Aktifkan cache untuk menghindari pengunduhan atau pemrosesan data yang berulang
+persist = true                 # Simpan cache secara persist untuk mempercepat akses ulang
+max_entries = 100              # Atur batas jumlah cache yang disimpan
+
+# Pengaturan Memori
+[runner]
+memoryLimit = 2.0              # Batas memori maksimum (dalam GB, sesuaikan dengan resource)
