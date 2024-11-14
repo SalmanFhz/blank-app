@@ -690,10 +690,11 @@ if __name__ == '__main__':
     main()
     
 def detect_anomalies_iqr(df, column='cnt', multiplier=1.5):
-    """Detect anomalies using the IQR method"""
+    """Detect anomalies using the IQR method, with additional check for low-activity anomalies below the mean."""
     Q1 = df[column].quantile(0.25)  # First quartile (25th percentile)
     Q3 = df[column].quantile(0.75)  # Third quartile (75th percentile)
     IQR = Q3 - Q1  # Interquartile range (IQR)
+    mean_value = df[column].mean()  # Mean of the column
 
     # Define the bounds for detecting anomalies
     lower_bound = Q1 - multiplier * IQR
@@ -702,19 +703,20 @@ def detect_anomalies_iqr(df, column='cnt', multiplier=1.5):
     # Copy the dataframe and create a column to indicate anomalies
     results = df.copy()
     results['is_anomaly'] = False
-    results.loc[results[column] < lower_bound, 'is_anomaly'] = True
     results.loc[results[column] > upper_bound, 'is_anomaly'] = True
+    results.loc[(results[column] < lower_bound) & (results[column] < mean_value), 'is_anomaly'] = True
 
     # Label the type of anomaly (high or low)
     results['anomaly_type'] = 'normal'
     results.loc[results[column] > upper_bound, 'anomaly_type'] = 'high_activity'
-    results.loc[results[column] < lower_bound, 'anomaly_type'] = 'low_activity'
+    results.loc[(results[column] < lower_bound) & (results[column] < mean_value), 'anomaly_type'] = 'low_activity'
 
     # Add bounds columns for reference
     results['lower_bound'] = lower_bound
     results['upper_bound'] = upper_bound
 
     return results
+
 
 def main():
     # Title
