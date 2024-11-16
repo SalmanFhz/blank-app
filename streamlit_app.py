@@ -318,228 +318,228 @@ Based on the results of the analysis, the following results was:
    - Pay special attention to bike maintenance during extreme weather seasons
 """)
 
-def load_and_preprocess(df, start_date, end_date):
-    """Load and preprocess the data"""
-    main_df = df[
-        (df["dteday"].dt.date >= start_date) &
-        (df["dteday"].dt.date <= end_date)
-    ]
+# def load_and_preprocess(df, start_date, end_date):
+#     """Load and preprocess the data"""
+#     main_df = df[
+#         (df["dteday"].dt.date >= start_date) &
+#         (df["dteday"].dt.date <= end_date)
+#     ]
     
-    daily_df = main_df.resample('D', on='dteday').agg({
-        'cnt': 'sum'
-    }).reset_index()
-    return daily_df.set_index('dteday')['cnt']
+#     daily_df = main_df.resample('D', on='dteday').agg({
+#         'cnt': 'sum'
+#     }).reset_index()
+#     return daily_df.set_index('dteday')['cnt']
 
-def calculate_moving_averages(data):
-    """Calculate different moving averages"""
-    ma7 = data.rolling(window=7, center=True).mean()
-    ma30 = data.rolling(window=30, center=True).mean()
-    return ma7, ma30
+# def calculate_moving_averages(data):
+#     """Calculate different moving averages"""
+#     ma7 = data.rolling(window=7, center=True).mean()
+#     ma30 = data.rolling(window=30, center=True).mean()
+#     return ma7, ma30
 
-def perform_decomposition(data):
-    """Perform seasonal decomposition"""
-    decomposition = seasonal_decompose(data, period=7, extrapolate_trend='freq')
+# def perform_decomposition(data):
+#     """Perform seasonal decomposition"""
+#     decomposition = seasonal_decompose(data, period=7, extrapolate_trend='freq')
     
-    fig, (ax1, ax2, ax3, ax4) = plt.subplots(4, 1, figsize=(15, 12))
+#     fig, (ax1, ax2, ax3, ax4) = plt.subplots(4, 1, figsize=(15, 12))
     
-    decomposition.observed.plot(ax=ax1)
-    ax1.set_title('Observed')
-    ax1.grid(True)
+#     decomposition.observed.plot(ax=ax1)
+#     ax1.set_title('Observed')
+#     ax1.grid(True)
     
-    decomposition.trend.plot(ax=ax2)
-    ax2.set_title('Trend')
-    ax2.grid(True)
+#     decomposition.trend.plot(ax=ax2)
+#     ax2.set_title('Trend')
+#     ax2.grid(True)
     
-    decomposition.seasonal.plot(ax=ax3)
-    ax3.set_title('Seasonal')
-    ax3.grid(True)
+#     decomposition.seasonal.plot(ax=ax3)
+#     ax3.set_title('Seasonal')
+#     ax3.grid(True)
     
-    decomposition.resid.plot(ax=ax4)
-    ax4.set_title('Residual')
-    ax4.grid(True)
+#     decomposition.resid.plot(ax=ax4)
+#     ax4.set_title('Residual')
+#     ax4.grid(True)
     
-    plt.tight_layout()
-    return fig, decomposition
+#     plt.tight_layout()
+#     return fig, decomposition
 
-def calculate_confidence_interval(data, forecast, days_ahead):
-    """
-    Calculate more realistic confidence intervals based on historical error
-    """
-    # Calculate historical prediction error based on moving average
-    ma7 = data.rolling(window=7).mean()
-    historical_errors = (data - ma7).dropna()
+# def calculate_confidence_interval(data, forecast, days_ahead):
+#     """
+#     Calculate more realistic confidence intervals based on historical error
+#     """
+#     # Calculate historical prediction error based on moving average
+#     ma7 = data.rolling(window=7).mean()
+#     historical_errors = (data - ma7).dropna()
     
-    # Error typically increases with forecast horizon
-    error_growth_factor = np.sqrt(days_ahead)
+#     # Error typically increases with forecast horizon
+#     error_growth_factor = np.sqrt(days_ahead)
     
-    # Calculate error margins based on historical errors
-    error_margin = historical_errors.std() * error_growth_factor
+#     # Calculate error margins based on historical errors
+#     error_margin = historical_errors.std() * error_growth_factor
     
-    # Scale down the margin for more realistic bounds
-    scaling_factor = 0.5  # Adjust this value to control interval width
-    error_margin = error_margin * scaling_factor
+#     # Scale down the margin for more realistic bounds
+#     scaling_factor = 0.5  # Adjust this value to control interval width
+#     error_margin = error_margin * scaling_factor
     
-    lower_bound = forecast - error_margin
-    upper_bound = forecast + error_margin
+#     lower_bound = forecast - error_margin
+#     upper_bound = forecast + error_margin
     
-    # Ensure lower bound isn't negative
-    lower_bound = max(0, lower_bound)
+#     # Ensure lower bound isn't negative
+#     lower_bound = max(0, lower_bound)
     
-    return lower_bound, upper_bound
+#     return lower_bound, upper_bound
 
-def make_simple_forecast(data, forecast_steps):
-    """Make simple forecast using historical averages and trends"""
-    # Calculate average daily change over the last 30 days
-    last_30_days = data[-30:]
-    daily_changes = last_30_days.diff()
-    avg_daily_change = daily_changes.mean()
+# def make_simple_forecast(data, forecast_steps):
+#     """Make simple forecast using historical averages and trends"""
+#     # Calculate average daily change over the last 30 days
+#     last_30_days = data[-30:]
+#     daily_changes = last_30_days.diff()
+#     avg_daily_change = daily_changes.mean()
     
-    # Calculate weekly pattern
-    weekly_pattern = data.groupby(data.index.dayofweek).mean()
+#     # Calculate weekly pattern
+#     weekly_pattern = data.groupby(data.index.dayofweek).mean()
     
-    # Get the last value
-    last_value = data.iloc[-1]
+#     # Get the last value
+#     last_value = data.iloc[-1]
     
-    # Create forecast dates
-    last_date = data.index[-1]
-    forecast_dates = pd.date_range(start=last_date + pd.Timedelta(days=1), 
-                                 periods=forecast_steps, 
-                                 freq='D')
+#     # Create forecast dates
+#     last_date = data.index[-1]
+#     forecast_dates = pd.date_range(start=last_date + pd.Timedelta(days=1), 
+#                                  periods=forecast_steps, 
+#                                  freq='D')
     
-    # Generate forecasts
-    forecasts = []
-    current_value = last_value
+#     # Generate forecasts
+#     forecasts = []
+#     current_value = last_value
     
-    for date in forecast_dates:
-        # Add trend
-        current_value += avg_daily_change
+#     for date in forecast_dates:
+#         # Add trend
+#         current_value += avg_daily_change
         
-        # Add weekly pattern adjustment
-        day_of_week = date.dayofweek
-        weekly_adjustment = weekly_pattern[day_of_week] - weekly_pattern.mean()
+#         # Add weekly pattern adjustment
+#         day_of_week = date.dayofweek
+#         weekly_adjustment = weekly_pattern[day_of_week] - weekly_pattern.mean()
         
-        # Calculate forecast
-        forecast_value = current_value + weekly_adjustment
+#         # Calculate forecast
+#         forecast_value = current_value + weekly_adjustment
         
-        # Ensure no negative values
-        forecast_value = max(0, forecast_value)
+#         # Ensure no negative values
+#         forecast_value = max(0, forecast_value)
         
-        forecasts.append(forecast_value)
+#         forecasts.append(forecast_value)
     
-    return pd.Series(forecasts, index=forecast_dates)
+#     return pd.Series(forecasts, index=forecast_dates)
 
-def plot_results(data, ma7, ma30, forecast, confidence_intervals):
-    """Plot the results"""
-    fig, ax = plt.subplots(figsize=(15, 8))
+# def plot_results(data, ma7, ma30, forecast, confidence_intervals):
+#     """Plot the results"""
+#     fig, ax = plt.subplots(figsize=(15, 8))
     
-    # Plot actual values and moving averages
-    ax.plot(data.index, data, label='Actual', alpha=0.5)
-    ax.plot(ma7.index, ma7, label='7-day MA', linewidth=2)
-    ax.plot(ma30.index, ma30, label='30-day MA', linewidth=2)
+#     # Plot actual values and moving averages
+#     ax.plot(data.index, data, label='Actual', alpha=0.5)
+#     ax.plot(ma7.index, ma7, label='7-day MA', linewidth=2)
+#     ax.plot(ma30.index, ma30, label='30-day MA', linewidth=2)
     
-    # Plot forecast and confidence intervals
-    if forecast is not None:
-        ax.plot(forecast.index, forecast, label='Forecast', 
-                color='red', linestyle='--')
+#     # Plot forecast and confidence intervals
+#     if forecast is not None:
+#         ax.plot(forecast.index, forecast, label='Forecast', 
+#                 color='red', linestyle='--')
         
-        # Plot confidence intervals
-        lower_bounds, upper_bounds = zip(*confidence_intervals)
-        ax.fill_between(forecast.index, lower_bounds, upper_bounds, 
-                       color='red', alpha=0.1, label='95% Confidence Interval')
+#         # Plot confidence intervals
+#         lower_bounds, upper_bounds = zip(*confidence_intervals)
+#         ax.fill_between(forecast.index, lower_bounds, upper_bounds, 
+#                        color='red', alpha=0.1, label='95% Confidence Interval')
     
-    ax.set_title('Bike Sharing Demand Analysis', fontsize=16)
-    ax.set_xlabel('Date', fontsize=12)
-    ax.set_ylabel('Number of Rentals', fontsize=12)
-    ax.legend()
-    ax.grid(True)
+#     ax.set_title('Bike Sharing Demand Analysis', fontsize=16)
+#     ax.set_xlabel('Date', fontsize=12)
+#     ax.set_ylabel('Number of Rentals', fontsize=12)
+#     ax.legend()
+#     ax.grid(True)
     
-    return fig
+#     return fig
 
-# Main Streamlit app
-st.title('Simple Time Series Analysis 🚲')
+# # Main Streamlit app
+# st.title('Simple Time Series Analysis 🚲')
 
-# Load data
-data = load_and_preprocess(all_df, start_date, end_date)
+# # Load data
+# data = load_and_preprocess(all_df, start_date, end_date)
 
-# Calculate moving averages
-ma7, ma30 = calculate_moving_averages(data)
+# # Calculate moving averages
+# ma7, ma30 = calculate_moving_averages(data)
 
-# Display basic statistics
-st.subheader('Basic Statistics')
-col1, col2, col3, col4 = st.columns(4)
-with col1:
-    st.metric("Average Daily Rentals", f"{data.mean():.0f}")
-with col2:
-    st.metric("Maximum Rentals", f"{data.max():.0f}")
-with col3:
-    st.metric("Minimum Rentals", f"{data.min():.0f}")
-with col4:
-    st.metric("Standard Deviation", f"{data.std():.0f}")
+# # Display basic statistics
+# st.subheader('Basic Statistics')
+# col1, col2, col3, col4 = st.columns(4)
+# with col1:
+#     st.metric("Average Daily Rentals", f"{data.mean():.0f}")
+# with col2:
+#     st.metric("Maximum Rentals", f"{data.max():.0f}")
+# with col3:
+#     st.metric("Minimum Rentals", f"{data.min():.0f}")
+# with col4:
+#     st.metric("Standard Deviation", f"{data.std():.0f}")
 
-# Weekly pattern analysis
-st.subheader('Weekly Pattern Analysis')
-weekly_avg = data.groupby(data.index.dayofweek).mean()
-weekly_std = data.groupby(data.index.dayofweek).std()
-days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+# # Weekly pattern analysis
+# st.subheader('Weekly Pattern Analysis')
+# weekly_avg = data.groupby(data.index.dayofweek).mean()
+# weekly_std = data.groupby(data.index.dayofweek).std()
+# days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
-fig_weekly = plt.figure(figsize=(12, 6))
-plt.bar(days, weekly_avg, yerr=weekly_std, capsize=5)
-plt.title('Average Daily Rentals by Day of Week')
-plt.ylabel('Number of Rentals')
-plt.xticks(rotation=45)
-st.pyplot(fig_weekly)
+# fig_weekly = plt.figure(figsize=(12, 6))
+# plt.bar(days, weekly_avg, yerr=weekly_std, capsize=5)
+# plt.title('Average Daily Rentals by Day of Week')
+# plt.ylabel('Number of Rentals')
+# plt.xticks(rotation=45)
+# st.pyplot(fig_weekly)
 
-# Perform decomposition
-st.subheader('Seasonal Decomposition')
-decomp_fig, decomposition = perform_decomposition(data)
-st.pyplot(decomp_fig)
+# # Perform decomposition
+# st.subheader('Seasonal Decomposition')
+# decomp_fig, decomposition = perform_decomposition(data)
+# st.pyplot(decomp_fig)
 
-# Make forecast
-forecast_steps = st.slider('Forecast Days', 1, 30, 7)
-forecast = make_simple_forecast(data, forecast_steps)
+# # Make forecast
+# forecast_steps = st.slider('Forecast Days', 1, 30, 7)
+# forecast = make_simple_forecast(data, forecast_steps)
 
-# Calculate confidence intervals for all forecast points
-confidence_intervals = [
-    calculate_confidence_interval(data, value, i+1) 
-    for i, value in enumerate(forecast)
-]
+# # Calculate confidence intervals for all forecast points
+# confidence_intervals = [
+#     calculate_confidence_interval(data, value, i+1) 
+#     for i, value in enumerate(forecast)
+# ]
 
-# Plot results
-st.subheader('Time Series Analysis')
-results_fig = plot_results(data, ma7, ma30, forecast, confidence_intervals)
-st.pyplot(results_fig)
+# # Plot results
+# st.subheader('Time Series Analysis')
+# results_fig = plot_results(data, ma7, ma30, forecast, confidence_intervals)
+# st.pyplot(results_fig)
 
-# Display forecast values
-st.subheader('Forecast Values')
-for i, (date, value) in enumerate(forecast.items(), 1):
-    lower_bound, upper_bound = confidence_intervals[i-1]
-    interval_width = upper_bound - lower_bound
+# # Display forecast values
+# st.subheader('Forecast Values')
+# for i, (date, value) in enumerate(forecast.items(), 1):
+#     lower_bound, upper_bound = confidence_intervals[i-1]
+#     interval_width = upper_bound - lower_bound
     
-    st.write(f"""
-    **{date.strftime('%A, %B %d, %Y')}**
-    - Predicted Rentals: {value:.0f}
-    - Likely Range: {lower_bound:.0f} to {upper_bound:.0f} rentals
-    - Interval Width: ±{(interval_width/2):.0f} rentals from predicted value
-    """)
+#     st.write(f"""
+#     **{date.strftime('%A, %B %d, %Y')}**
+#     - Predicted Rentals: {value:.0f}
+#     - Likely Range: {lower_bound:.0f} to {upper_bound:.0f} rentals
+#     - Interval Width: ±{(interval_width/2):.0f} rentals from predicted value
+#     """)
 
-# Display additional insights
-st.subheader('Additional Insights')
-best_day = days[weekly_avg.argmax()]
-worst_day = days[weekly_avg.argmin()]
-best_value = weekly_avg.max()
-worst_value = weekly_avg.min()
+# # Display additional insights
+# st.subheader('Additional Insights')
+# best_day = days[weekly_avg.argmax()]
+# worst_day = days[weekly_avg.argmin()]
+# best_value = weekly_avg.max()
+# worst_value = weekly_avg.min()
 
-st.write(f"""
-- Days with the highest average rentals: {best_day} ({best_value:.0f} rentals)
-- Days with the lowest average rentals: {worst_day} ({worst_value:.0f} rentals)
-- Variasi harian: {(weekly_avg.max() - weekly_avg.min()):.0f} rentals
-""")
+# st.write(f"""
+# - Days with the highest average rentals: {best_day} ({best_value:.0f} rentals)
+# - Days with the lowest average rentals: {worst_day} ({worst_value:.0f} rentals)
+# - Variasi harian: {(weekly_avg.max() - weekly_avg.min()):.0f} rentals
+# """)
 
-# Calculate and display trend
-recent_trend = data[-30:].mean() - data[-60:-30].mean()
-st.write(f"""
-Trends of the last 30 days: {'Down' if recent_trend > 0 else 'Increase'} in the amount of {abs(recent_trend):.0f} rentals
-""")
+# # Calculate and display trend
+# recent_trend = data[-30:].mean() - data[-60:-30].mean()
+# st.write(f"""
+# Trends of the last 30 days: {'Down' if recent_trend > 0 else 'Increase'} in the amount of {abs(recent_trend):.0f} rentals
+# """)
 
 
 
