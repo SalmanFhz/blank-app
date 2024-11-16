@@ -544,9 +544,21 @@ Based on the results of the analysis, the following results was:
 
 
 
+@st.cache_data
+def load_data():
+    """Memuat data dari file CSV dan mengembalikannya sebagai DataFrame."""
+    try:
+        df = pd.read_csv("hour.csv")
+        if 'cnt' not in data.columns:
+            raise ValueError("Kolom 'cnt' tidak ditemukan di dataset.")
+        return df
+    except Exception as e:
+        raise ValueError(f"Gagal memuat data: {str(e)}")
+
+
 def create_descriptive_stats(df):
-    holiday_stats = df.groupby('holiday')[['casual', 'registered', 'cnt']].describe()
-    workingday_stats = df.groupby('workingday')[['casual', 'registered', 'cnt']].describe()
+    holiday_stats = df.groupby('holiday')[['casual', 'registered', 'cnt', 'temp', 'atemp', 'hum']].describe()
+    workingday_stats = df.groupby('workingday')[['casual', 'registered', 'cnt', 'temp', 'atemp', 'hum']].describe()
     return holiday_stats, workingday_stats
 
 def create_boxplots(df):
@@ -571,7 +583,7 @@ def perform_statistical_tests(df):
     results = []
     
     # Holiday tests
-    for column in ['casual', 'registered', 'cnt']:
+    for column in ['casual', 'registered', 'cnt', 'temp', 'atemp', 'hum']:
         holiday_data = df[df['holiday'] == 1][column]
         non_holiday_data = df[df['holiday'] == 0][column]
         
@@ -584,7 +596,7 @@ def perform_statistical_tests(df):
         })
     
     # Workingday tests
-    for column in ['casual', 'registered', 'cnt']:
+    for column in ['casual', 'registered', 'cnt', 'temp', 'atemp', 'hum']:
         workingday_data = df[df['workingday'] == 1][column]
         non_workingday_data = df[df['workingday'] == 0][column]
         
@@ -597,7 +609,7 @@ def perform_statistical_tests(df):
         })
     
     # Weekday tests
-    for column in ['casual', 'registered', 'cnt']:
+    for column in ['casual', 'registered', 'cnt', 'temp', 'atemp', 'hum']:
         groups = [df[df['weekday'] == i][column] for i in range(7)]
         stat, p_val = f_oneway(*groups)
         results.append({
@@ -610,7 +622,7 @@ def perform_statistical_tests(df):
     return pd.DataFrame(results)
 
 def run_regression(df):
-    X = df[['holiday', 'workingday', 'weekday']]
+    X = df[['holiday', 'workingday', 'weekday', 'temp', 'atemp', 'hum']]
     X = sm.add_constant(X)
     nb_model = sm.GLM(df['cnt'], X, family=sm.families.NegativeBinomial())
     return nb_model.fit()
