@@ -20,6 +20,7 @@ from statsmodels.tsa.seasonal import seasonal_decompose
 import holidays
 import itertools
 from statsmodels.tsa.statespace.sarimax import SARIMAX
+import time
 
 
 # Set page config and custom theme
@@ -692,118 +693,99 @@ if __name__ == '__main__':
 
 
 #Forecasting
-# Fungsi untuk load data
-@st.cache_data
-def load_data():
-    data = pd.read_csv("hour.csv")
-    # Konversi ke datetime jika perlu
-    # data['datetime'] = pd.to_datetime(data['datetime'])
-    return data
+# Fungsi untuk load data dengan timeout
+@st.cache_data(ttl=1800)  # Cache 30 menit
+def load_data(n_samples=500):  # Kurangi jumlah sample
+    try:
+        data = pd.read_csv("hour.csv")
+        return data.tail(n_samples)
+    except Exception as e:
+        st.error(f"Error loading data: {e}")
+        return None
 
-# Fungsi untuk membuat plot
-def create_plot(actual_values, predicted_values):
-    plt.figure(figsize=(12, 6))
-    hours = range(24)
-    
-    plt.plot(hours, actual_values, 'b-o', label='Aktual (24 jam terakhir)', linewidth=2)
-    plt.plot(hours, predicted_values, 'r--o', label='Prediksi (24 jam ke depan)', linewidth=2)
-    
-    plt.title('Perbandingan Data Aktual vs Prediksi (24 Jam)')
-    plt.xlabel('Jam ke-')
-    plt.ylabel('Jumlah Peminjaman')
-    plt.grid(True, alpha=0.3)
-    plt.legend()
-    plt.xticks(hours)
-    
-    return plt
+# Fungsi untuk training dengan timeout
+@st.cache_resource(ttl=1800)
+def train_sarima_model(_data, timeout=120):  # 2 menit timeout
+    start_time = time.time()
+    try:
+        model = SARIMAX(_data,
+                        order=(1, 1, 1),
+                        seasonal_order=(0, 1, 1, 24),
+                        enforce_stationarity=False,
+                        enforce_invertibility=False)
+        
+        # Check timeout
+        if time.time() - start_time > timeout:
+            raise TimeoutError("Model training timeout")
+            
+        return model.fit(disp=False, 
+                        maxiter=50,  # Batasi iterasi
+                        method='powell')  # Metode optimasi yang lebih cepat
+    except Exception as e:
+        st.error(f"Training error: {e}")
+        return None
 
 def main():
-    st.title("Prediksi Jumlah Peminjaman Sepeda dengan SARIMA")
+    st.set_page_config(
+        page_title="Prediksi Sepeda",
+        layout="wide",
+        initial_sidebar_state="collapsed"
+    )
     
-    # Load data
-    try:
-        data = load_data()
-        st.success("Data berhasil dimuat!")
-    except Exception as e:
-        st.error(f"Error saat memuat data: {str(e)}")
-        return
+    st.title("Prediksi Jumlah Peminjaman Sepeda")
     
-    # Tampilkan data
-    st.subheader("Preview Data")
-    st.dataframe(data.head())
+    # Load data dengan jumlah terbatas
+    data = load_data(n_samples=500)
+    if data is None:
+        st.stop()
     
-    # Parameter SARIMA
-    st.sidebar.header("Parameter SARIMA")
-    p = st.sidebar.slider("AR order (p)", 0, 2, 1)
-    d = st.sidebar.slider("Difference order (d)", 0, 2, 1)
-    q = st.sidebar.slider("MA order (q)", 0, 2, 1)
-    P = st.sidebar.slider("Seasonal AR order (P)", 0, 2, 0)
-    D = st.sidebar.slider("Seasonal Difference (D)", 0, 2, 1)
-    Q = st.sidebar.slider("Seasonal MA order (Q)", 0, 2, 1)
-    s = 24  # Seasonal period (24 jam)
+    st.success("Data berhasil dimuat!")
     
-    # Tombol untuk mulai prediksi
+    # Tampilkan preview data
+    with st.expander("Preview Data"):
+        st.dataframe(data.head())
+    
+    # Prediksi
     if st.button("Mulai Prediksi"):
-        with st.spinner("Sedang melakukan prediksi..."):
+        with st.spinner("Processing..."):
             try:
-                # Siapkan data time series
+                # Prepare data
                 ts_data = data['cnt'].values
                 
-                # Fit model SARIMA
-                model = SARIMAX(ts_data,
-                              order=(p, d, q),
-                              seasonal_order=(P, D, Q, s),
-                              enforce_stationarity=False,
-                              enforce_invertibility=False)
+                # Train model dengan timeout
+                results = train_sarima_model(ts_data)
+                if results is None:
+                    st.error("Model training failed")
+                    st.stop()
                 
-                results = model.fit(disp=False)
-                
-                # Ambil data aktual 24 jam terakhir
-                actual_values = ts_data[-24:]
-                
-                # Prediksi 24 jam ke depan
+                # Prediksi
+                actual = ts_data[-24:]
                 forecast = results.get_forecast(steps=24)
-                predicted_values = forecast.predicted_mean
+                predicted = forecast.predicted_mean
                 
-                # Hitung metrik evaluasi
-                mae = np.mean(np.abs(actual_values - predicted_values))
-                mse = np.mean((actual_values - predicted_values) ** 2)
-                rmse = np.sqrt(mse)
-                mape = np.mean(np.abs((actual_values - predicted_values) / actual_values)) * 100
+                # Metrik
+                metrics = {
+                    "MAE": np.mean(np.abs(actual - predicted)),
+                    "RMSE": np.sqrt(np.mean((actual - predicted) ** 2)),
+                    "MAPE": np.mean(np.abs((actual - predicted) / actual)) * 100
+                }
                 
-                # Tampilkan metrik
-                st.subheader("Metrik Evaluasi")
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.metric("MAE", f"{mae:.2f}")
-                    st.metric("MSE", f"{mse:.2f}")
-                with col2:
-                    st.metric("RMSE", f"{rmse:.2f}")
-                    st.metric("MAPE", f"{mape:.2f}%")
+                # Display metrics
+                cols = st.columns(3)
+                for (metric, value), col in zip(metrics.items(), cols):
+                    col.metric(metric, f"{value:.2f}")
                 
-                # Tampilkan plot
-                st.subheader("Visualisasi Prediksi")
-                fig = create_plot(actual_values, predicted_values)
+                # Plot
+                fig, ax = plt.subplots(figsize=(10, 6))
+                ax.plot(actual, 'b-', label='Aktual')
+                ax.plot(predicted, 'r--', label='Prediksi')
+                ax.set_title('Prediksi 24 Jam')
+                ax.legend()
                 st.pyplot(fig)
-                
-                # Download hasil prediksi
-                predictions_df = pd.DataFrame({
-                    'Jam': range(24),
-                    'Aktual': actual_values,
-                    'Prediksi': predicted_values
-                })
-                
-                st.download_button(
-                    label="Download Hasil Prediksi (CSV)",
-                    data=predictions_df.to_csv(index=False).encode('utf-8'),
-                    file_name='hasil_prediksi_sarima.csv',
-                    mime='text/csv'
-                )
+                plt.close()
                 
             except Exception as e:
-                st.error(f"Error saat melakukan prediksi: {str(e)}")
-            finally:
-                plt.close()
+                st.error(f"Error: {e}")
 
 if __name__ == "__main__":
     main()
