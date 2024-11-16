@@ -692,12 +692,12 @@ if __name__ == '__main__':
 
 
 #Forecasting
+# Fungsi untuk memuat data
 @st.cache_data
 def load_data():
     """Memuat data dari file CSV dan mengembalikannya sebagai DataFrame."""
     try:
-        data = pd.read_csv("hour.csv")
-        # Validasi apakah kolom 'cnt' ada
+        data = pd.read_csv("D:/statistika/data_simulasi/blank-app-main/hour.csv")
         if 'cnt' not in data.columns:
             raise ValueError("Kolom 'cnt' tidak ditemukan di dataset.")
         return data
@@ -737,7 +737,7 @@ def main():
     
     # Tampilkan data
     st.subheader("Preview Data")
-    st.dataframe(data.head())
+    st.dataframe(data.tail(10))  # Hanya tampilkan 10 data terakhir
     
     # Parameter SARIMA
     st.sidebar.header("Parameter SARIMA")
@@ -754,14 +754,14 @@ def main():
         with st.spinner("Sedang melakukan prediksi..."):
             try:
                 # Siapkan data time series
-                ts_data = data['cnt'].values
+                ts_data = data['cnt'].values[-240:]  # Hanya gunakan 240 data terakhir
                 
                 # Fit model SARIMA
                 model = SARIMAX(ts_data,
-                              order=(p, d, q),
-                              seasonal_order=(P, D, Q, s),
-                              enforce_stationarity=False,
-                              enforce_invertibility=False)
+                                order=(p, d, q),
+                                seasonal_order=(P, D, Q, s),
+                                enforce_stationarity=False,
+                                enforce_invertibility=False)
                 
                 results = model.fit(disp=False)
                 
