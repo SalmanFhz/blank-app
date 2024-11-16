@@ -692,37 +692,23 @@ if __name__ == '__main__':
 
 
 #Forecasting
+# Fungsi untuk load data
 @st.cache_data
 def load_data():
     data = pd.read_csv("hour.csv")
-    return data.dropna(axis=1)
+    # Konversi ke datetime jika perlu
+    # data['datetime'] = pd.to_datetime(data['datetime'])
+    return data
 
-@st.cache_data
-def detect_outliers_iqr(data, column):
-    Q1 = data[column].quantile(0.25)
-    Q3 = data[column].quantile(0.75)
-    IQR = Q3 - Q1
-    lower_bound = Q1 - 1.5 * IQR
-    upper_bound = Q3 + 1.5 * IQR
-    outliers = data[(data[column] < lower_bound) | (data[column] > upper_bound)]
-    normal = data[(data[column] >= lower_bound) & (data[column] <= upper_bound)]
-    return outliers, normal, lower_bound, upper_bound
-
-@st.cache_resource
-def train_model(ts, p, d, q, seasonal_p, seasonal_d, seasonal_q):
-    model = SARIMAX(ts, 
-                    order=(p, d, q), 
-                    seasonal_order=(seasonal_p, seasonal_d, seasonal_q, 24))
-    return model.fit(disp=False)
-
-def create_prediction_plot(actual_values, predicted_values):
+# Fungsi untuk membuat plot
+def create_plot(actual_values, predicted_values):
     plt.figure(figsize=(12, 6))
     hours = range(24)
     
     plt.plot(hours, actual_values, 'b-o', label='Aktual (24 jam terakhir)', linewidth=2)
     plt.plot(hours, predicted_values, 'r--o', label='Prediksi (24 jam ke depan)', linewidth=2)
     
-    plt.title('Perbandingan Data Aktual vs Prediksi (24 Jam)', pad=20)
+    plt.title('Perbandingan Data Aktual vs Prediksi (24 Jam)')
     plt.xlabel('Jam ke-')
     plt.ylabel('Jumlah Peminjaman')
     plt.grid(True, alpha=0.3)
@@ -732,95 +718,92 @@ def create_prediction_plot(actual_values, predicted_values):
     return plt
 
 def main():
-    st.title("Prediksi Jumlah Peminjaman Sepeda")
-    st.write("Aplikasi ini memprediksi jumlah peminjaman sepeda untuk 24 jam ke depan")
+    st.title("Prediksi Jumlah Peminjaman Sepeda dengan SARIMA")
     
     # Load data
     try:
         data = load_data()
         st.success("Data berhasil dimuat!")
-    except FileNotFoundError:
-        st.error("Pastikan file 'hour.csv' berada dalam direktori yang sama dengan script ini")
+    except Exception as e:
+        st.error(f"Error saat memuat data: {str(e)}")
         return
     
-    # Sidebar untuk parameter
-    st.sidebar.header("Parameter Model")
-    p = st.sidebar.slider("AR order (p)", 0, 3, 1)
+    # Tampilkan data
+    st.subheader("Preview Data")
+    st.dataframe(data.head())
+    
+    # Parameter SARIMA
+    st.sidebar.header("Parameter SARIMA")
+    p = st.sidebar.slider("AR order (p)", 0, 2, 1)
     d = st.sidebar.slider("Difference order (d)", 0, 2, 1)
-    q = st.sidebar.slider("MA order (q)", 0, 3, 1)
-    seasonal_p = st.sidebar.slider("Seasonal AR order (P)", 0, 2, 0)
-    seasonal_d = st.sidebar.slider("Seasonal difference (D)", 0, 2, 1)
-    seasonal_q = st.sidebar.slider("Seasonal MA order (Q)", 0, 2, 1)
+    q = st.sidebar.slider("MA order (q)", 0, 2, 1)
+    P = st.sidebar.slider("Seasonal AR order (P)", 0, 2, 0)
+    D = st.sidebar.slider("Seasonal Difference (D)", 0, 2, 1)
+    Q = st.sidebar.slider("Seasonal MA order (Q)", 0, 2, 1)
+    s = 24  # Seasonal period (24 jam)
     
-    # Data preparation
-    st.subheader("Preprocessing Data")
-    
-    # Handle outliers
-    outliers, normal, lower, upper = detect_outliers_iqr(data, 'cnt')
-    data_clean = data.copy()
-    data_clean['cnt'] = data_clean['cnt'].clip(lower=lower, upper=upper)
-    
-    st.write("Ukuran data:", data_clean.shape)
-    st.write("Sampel data yang telah dibersihkan:")
-    st.dataframe(data_clean.head())
-    
-    # Model training and prediction
-    if st.button("Mulai Training dan Prediksi"):
-        with st.spinner("Sedang melakukan training model dan prediksi..."):
-            # Prepare time series data
-            ts = data_clean['cnt']
-            
-            # Train SARIMAX model menggunakan fungsi cached
-            results = train_model(ts, p, d, q, seasonal_p, seasonal_d, seasonal_q)
-            
-            # Make predictions
-            forecast = results.get_forecast(steps=24)
-            forecast_mean = forecast.predicted_mean
-            
-            # Get actual values for comparison
-            last_24_hours = data_clean.iloc[-24:]
-            actual_values = last_24_hours['cnt'].values
-            predicted_values = forecast_mean[:24].values
-            
-            # Calculate metrics
-            mae = mean_absolute_error(actual_values, predicted_values)
-            mse = mean_squared_error(actual_values, predicted_values)
-            rmse = np.sqrt(mse)
-            r2 = r2_score(actual_values, predicted_values)
-            mape = np.mean(np.abs((actual_values - predicted_values) / actual_values)) * 100
-            
-            # Display metrics
-            st.subheader("Metrik Performa Model")
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                st.metric("MAE", f"{mae:.2f}")
-                st.metric("MSE", f"{mse:.2f}")
-            with col2:
-                st.metric("RMSE", f"{rmse:.2f}")
-                st.metric("R²", f"{r2:.4f}")
-            with col3:
-                st.metric("MAPE", f"{mape:.2f}%")
-            
-            # Create and display matplotlib plot
-            st.subheader("Visualisasi Aktual vs Prediksi")
-            fig = create_prediction_plot(actual_values, predicted_values)
-            st.pyplot(fig)
-            
-            # Download predictions
-            predictions_df = pd.DataFrame({
-                'Jam': range(24),
-                'Aktual': actual_values,
-                'Prediksi': predicted_values
-            })
-            
-            st.download_button(
-                label="Download Hasil Prediksi (CSV)",
-                data=predictions_df.to_csv(index=False).encode('utf-8'),
-                file_name='hasil_prediksi.csv',
-                mime='text/csv'
-            )
-            
-            plt.close()
+    # Tombol untuk mulai prediksi
+    if st.button("Mulai Prediksi"):
+        with st.spinner("Sedang melakukan prediksi..."):
+            try:
+                # Siapkan data time series
+                ts_data = data['cnt'].values
+                
+                # Fit model SARIMA
+                model = SARIMAX(ts_data,
+                              order=(p, d, q),
+                              seasonal_order=(P, D, Q, s),
+                              enforce_stationarity=False,
+                              enforce_invertibility=False)
+                
+                results = model.fit(disp=False)
+                
+                # Ambil data aktual 24 jam terakhir
+                actual_values = ts_data[-24:]
+                
+                # Prediksi 24 jam ke depan
+                forecast = results.get_forecast(steps=24)
+                predicted_values = forecast.predicted_mean
+                
+                # Hitung metrik evaluasi
+                mae = np.mean(np.abs(actual_values - predicted_values))
+                mse = np.mean((actual_values - predicted_values) ** 2)
+                rmse = np.sqrt(mse)
+                mape = np.mean(np.abs((actual_values - predicted_values) / actual_values)) * 100
+                
+                # Tampilkan metrik
+                st.subheader("Metrik Evaluasi")
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.metric("MAE", f"{mae:.2f}")
+                    st.metric("MSE", f"{mse:.2f}")
+                with col2:
+                    st.metric("RMSE", f"{rmse:.2f}")
+                    st.metric("MAPE", f"{mape:.2f}%")
+                
+                # Tampilkan plot
+                st.subheader("Visualisasi Prediksi")
+                fig = create_plot(actual_values, predicted_values)
+                st.pyplot(fig)
+                
+                # Download hasil prediksi
+                predictions_df = pd.DataFrame({
+                    'Jam': range(24),
+                    'Aktual': actual_values,
+                    'Prediksi': predicted_values
+                })
+                
+                st.download_button(
+                    label="Download Hasil Prediksi (CSV)",
+                    data=predictions_df.to_csv(index=False).encode('utf-8'),
+                    file_name='hasil_prediksi_sarima.csv',
+                    mime='text/csv'
+                )
+                
+            except Exception as e:
+                st.error(f"Error saat melakukan prediksi: {str(e)}")
+            finally:
+                plt.close()
 
 if __name__ == "__main__":
     main()
