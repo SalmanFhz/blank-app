@@ -905,6 +905,7 @@ def main():
     
     # Display plot
     st.pyplot(fig)
+    st.write("""pada jam 8, 11-19 sering terjadi anomali jumlah peminjaman dimana anomali tersebut termasuk pada anomali high atau lonjakan pengunjung, dapat diupayakan bahwa sepeda ready pada jam tersebut sehingga dapat mengatasi lonjakan signifikan pada peminjaman sepeda.""")
     
     # Display anomaly details in tabs
     tab1, tab2 = st.tabs(["High Activity Anomalies", "Low Activity Anomalies"])
@@ -920,7 +921,7 @@ def main():
             low_anomalies[['dteday', 'hr', 'cnt', 'weathersit', 'temp', 'hum']]
             .sort_values('cnt', ascending=True)
         )
-        st.write("""pada jam 8, 11-19 sering terjadi anomali jumlah peminjaman dimana anomali tersebut termasuk pada anomali high atau lonjakan pengunjung, dapat diupayakan bahwa sepeda ready pada jam tersebut sehingga dapat mengatasi lonjakan signifikan pada peminjaman sepeda.""" )
+        
 
 if __name__ == "__main__":
     main()
