@@ -689,111 +689,8 @@ def main():
 
 if __name__ == '__main__':
     main()
-    
-def detect_anomalies_iqr(df, column='cnt', multiplier=1.5):
-    """Detect anomalies using the IQR method, with additional check for low-activity anomalies below the mean."""
-    Q1 = df[column].quantile(0.25)  # First quartile (25th percentile)
-    Q3 = df[column].quantile(0.75)  # Third quartile (75th percentile)
-    IQR = Q3 - Q1  # Interquartile range (IQR)
-    mean_value = df[column].mean()  # Mean of the column
-
-    # Define the bounds for detecting anomalies
-    lower_bound = Q1 - multiplier * IQR
-    upper_bound = Q3 + multiplier * IQR
-
-    # Copy the dataframe and create a column to indicate anomalies
-    results = df.copy()
-    results['is_anomaly'] = False
-    results.loc[results[column] > upper_bound, 'is_anomaly'] = True
-    results.loc[(results[column] < lower_bound) & (results[column] < mean_value), 'is_anomaly'] = True
-
-    # Label the type of anomaly (high or low)
-    results['anomaly_type'] = 'normal'
-    results.loc[results[column] > upper_bound, 'anomaly_type'] = 'high_activity'
-    results.loc[(results[column] < lower_bound) & (results[column] < mean_value), 'anomaly_type'] = 'low_activity'
-
-    # Add bounds columns for reference
-    results['lower_bound'] = lower_bound
-    results['upper_bound'] = upper_bound
-
-    return results
 
 
-def main():
-    # Title
-    st.title("🚲 Bike Rental Anomaly Detection")
-
-    # Sidebar controls
-    st.sidebar.header("Settings")
-    multiplier = st.sidebar.slider("IQR Multiplier", 1.0, 3.0, 1.5, 0.1,
-                                 help="Adjust sensitivity of anomaly detection. Lower values detect more anomalies.")
-
-    # Load the real data
-    # Replace 'bike_rentals.csv' with the path to your actual dataset
-    all_df = pd.read_csv('hour.csv')
-    
-    # Detect anomalies
-    results = detect_anomalies_iqr(all_df, multiplier=multiplier)
-    
-    # Display summary metrics in columns
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        st.metric("Total Data", len(results))
-    with col2:
-        st.metric("Total Anomalies", results['is_anomaly'].sum())
-    with col3:
-        st.metric("High Activity Anomalies", (results['anomaly_type'] == 'high_activity').sum())
-    with col4:
-        st.metric("Low Activity Anomalies", (results['anomaly_type'] == 'low_activity').sum())
-    
-    # Create visualization
-    st.subheader("Rental Pattern and Anomalies")
-    
-    fig, ax = plt.subplots(figsize=(15, 8))
-    
-    # Plot normal points
-    normal_data = results[~results['is_anomaly']]
-    ax.scatter(normal_data.index, normal_data['cnt'], color='blue', label='Normal', alpha=0.5, s=20)
-    
-    # Plot high anomalies
-    high_anomalies = results[results['anomaly_type'] == 'high_activity']
-    ax.scatter(high_anomalies.index, high_anomalies['cnt'], color='red', label='High Activity Anomaly', marker='*', s=100)
-    
-    # Plot low anomalies
-    low_anomalies = results[results['anomaly_type'] == 'low_activity']
-    ax.scatter(low_anomalies.index, low_anomalies['cnt'], color='orange', label='Low Activity Anomaly', marker='*', s=100)
-    
-    # Plot bounds
-    ax.axhline(y=results['upper_bound'].iloc[0], color='red', linestyle='--', label='Upper Bound')
-    ax.axhline(y=results['lower_bound'].iloc[0], color='orange', linestyle='--', label='Lower Bound')
-    
-    plt.title('Bike Rentals Over Time with Anomalies')
-    plt.xlabel('Data Point')
-    plt.ylabel('Number of Rentals')
-    plt.legend()
-    plt.grid(True, alpha=0.3)
-    
-    # Display plot
-    st.pyplot(fig)
-    
-    # Display anomaly details in tabs
-    tab1, tab2 = st.tabs(["High Activity Anomalies", "Low Activity Anomalies"])
-    
-    with tab1:
-        st.dataframe(
-            high_anomalies[['dteday', 'hr', 'cnt', 'weathersit', 'temp', 'hum']]
-            .sort_values('cnt', ascending=False)
-        )
-    
-    with tab2:
-        st.dataframe(
-            low_anomalies[['dteday', 'hr', 'cnt', 'weathersit', 'temp', 'hum']]
-            .sort_values('cnt', ascending=True)
-        )
-
-if __name__ == "__main__":
-    main()
-    
 #Forecasting
 def load_data():
     data = pd.read_csv("hour.csv")
@@ -923,6 +820,113 @@ def main():
 
 if __name__ == "__main__":
     main()
+    
+ #anomali detection   
+def detect_anomalies_iqr(df, column='cnt', multiplier=1.5):
+    """Detect anomalies using the IQR method, with additional check for low-activity anomalies below the mean."""
+    Q1 = df[column].quantile(0.25)  # First quartile (25th percentile)
+    Q3 = df[column].quantile(0.75)  # Third quartile (75th percentile)
+    IQR = Q3 - Q1  # Interquartile range (IQR)
+    mean_value = df[column].mean()  # Mean of the column
+
+    # Define the bounds for detecting anomalies
+    lower_bound = Q1 - multiplier * IQR
+    upper_bound = Q3 + multiplier * IQR
+
+    # Copy the dataframe and create a column to indicate anomalies
+    results = df.copy()
+    results['is_anomaly'] = False
+    results.loc[results[column] > upper_bound, 'is_anomaly'] = True
+    results.loc[(results[column] < lower_bound) & (results[column] < mean_value), 'is_anomaly'] = True
+
+    # Label the type of anomaly (high or low)
+    results['anomaly_type'] = 'normal'
+    results.loc[results[column] > upper_bound, 'anomaly_type'] = 'high_activity'
+    results.loc[(results[column] < lower_bound) & (results[column] < mean_value), 'anomaly_type'] = 'low_activity'
+
+    # Add bounds columns for reference
+    results['lower_bound'] = lower_bound
+    results['upper_bound'] = upper_bound
+
+    return results
+
+
+def main():
+    # Title
+    st.title("🚲 Bike Rental Anomaly Detection")
+
+    # Sidebar controls
+    st.sidebar.header("Settings")
+    multiplier = st.sidebar.slider("IQR Multiplier", 1.0, 3.0, 1.5, 0.1,
+                                 help="Adjust sensitivity of anomaly detection. Lower values detect more anomalies.")
+
+    # Load the real data
+    # Replace 'bike_rentals.csv' with the path to your actual dataset
+    all_df = pd.read_csv('hour.csv')
+    
+    # Detect anomalies
+    results = detect_anomalies_iqr(all_df, multiplier=multiplier)
+    
+    # Display summary metrics in columns
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric("Total Data", len(results))
+    with col2:
+        st.metric("Total Anomalies", results['is_anomaly'].sum())
+    with col3:
+        st.metric("High Activity Anomalies", (results['anomaly_type'] == 'high_activity').sum())
+    with col4:
+        st.metric("Low Activity Anomalies", (results['anomaly_type'] == 'low_activity').sum())
+    
+    # Create visualization
+    st.subheader("Rental Pattern and Anomalies")
+    
+    fig, ax = plt.subplots(figsize=(15, 8))
+    
+    # Plot normal points
+    normal_data = results[~results['is_anomaly']]
+    ax.scatter(normal_data.index, normal_data['cnt'], color='blue', label='Normal', alpha=0.5, s=20)
+    
+    # Plot high anomalies
+    high_anomalies = results[results['anomaly_type'] == 'high_activity']
+    ax.scatter(high_anomalies.index, high_anomalies['cnt'], color='red', label='High Activity Anomaly', marker='*', s=100)
+    
+    # Plot low anomalies
+    low_anomalies = results[results['anomaly_type'] == 'low_activity']
+    ax.scatter(low_anomalies.index, low_anomalies['cnt'], color='orange', label='Low Activity Anomaly', marker='*', s=100)
+    
+    # Plot bounds
+    ax.axhline(y=results['upper_bound'].iloc[0], color='red', linestyle='--', label='Upper Bound')
+    ax.axhline(y=results['lower_bound'].iloc[0], color='orange', linestyle='--', label='Lower Bound')
+    
+    plt.title('Bike Rentals Over Time with Anomalies')
+    plt.xlabel('Data Point')
+    plt.ylabel('Number of Rentals')
+    plt.legend()
+    plt.grid(True, alpha=0.3)
+    
+    # Display plot
+    st.pyplot(fig)
+    
+    # Display anomaly details in tabs
+    tab1, tab2 = st.tabs(["High Activity Anomalies", "Low Activity Anomalies"])
+    
+    with tab1:
+        st.dataframe(
+            high_anomalies[['dteday', 'hr', 'cnt', 'weathersit', 'temp', 'hum']]
+            .sort_values('cnt', ascending=False)
+        )
+    
+    with tab2:
+        st.dataframe(
+            low_anomalies[['dteday', 'hr', 'cnt', 'weathersit', 'temp', 'hum']]
+            .sort_values('cnt', ascending=True)
+        )
+
+if __name__ == "__main__":
+    main()
+    
+
 
 # Footer
 st.write('Built by Salman Fadhilurrohman © 2024 Dicoding Submission')
