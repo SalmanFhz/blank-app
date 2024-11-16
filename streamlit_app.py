@@ -678,22 +678,15 @@ def main():
             regression_results = run_regression(df)
             st.text(regression_results.summary().as_text())
             st.write("""
-                     Based on the results of the Negative Binomial Regression analysis, the following results was:
-                     1. Coefficients Interpretation:
-                        - const (Intercept): 5.1794
-                          This is the base log count of rentals when all predictors are zero. Exponentiating this gives the baseline rental count.
-                        - holiday: -0.1430
-                          A negative coefficient, indicating that bike rentals tend to decrease on holidays. Specifically, the coefficient suggests that rentals on holidays are about 𝑒 − 0.1430 ≈ 0.87 e−0.1430≈0.87 times the rentals on non-holidays, or about a 13% decrease.
-                        - weekday: 0.0113
-                          A small positive effect, implying a slight increase in rentals per additional weekday. Each day closer to the weekend shows a minor increase in rentals, though the effect is modest.
-                     2. Statistical Significance:
-                        - All predictors (holiday, workingday, and weekday) are statistically significant (p-values < 0.05), indicating that they contribute meaningfully to explaining the variation in bike rentals.
-                     3. Model Fit:
-                        - Pseudo R-squared (CS) of 0.001983 suggests a small proportion of variance explained by this model, indicating that other variables not included in this model likely have a substantial impact on bike rentals.
-                     4. Conclution:
-                        - Holidays are associated with a decrease in bike rentals.
-                        - Working days are associated with a slight increase in rentals, likely because more people use bikes for commuting.
-                        - Weekdays contribute a very minor but positive increase in rentals.
+                     Faktor yang meningkatkan peminjaman sepeda (koefisien positif):
+                     1. atemp (feels-like temperature) memiliki pengaruh paling besar (+2.2185)
+                        Saat orang merasa suhu nyaman, peminjaman sepeda meningkat signifikan
+                        Ini masuk akal karena orang cenderung bersepeda saat cuaca terasa nyaman
+                     2. workingday (+0.1149) Ada peningkatan peminjaman pada hari kerja Menunjukkan sepeda banyak digunakan untuk komuting/transportasi ke tempat kerja
+                     3. weekday (+0.0079) Ada sedikit peningkatan seiring hari dalam minggu Efeknya kecil tapi masih signifikan
+                     Faktor yang menurunkan peminjaman sepeda (koefisien negatif):
+                     1. hum (humidity) memiliki efek negatif besar (-1.5127) Semakin lembab udara, semakin sedikit peminjaman Orang cenderung menghindari bersepeda saat kelembaban tinggi
+                     2. holiday (-0.1279) Peminjaman menurun saat hari libur Mendukung temuan bahwa sepeda lebih banyak digunakan untuk komuting
                      """)
             
     except Exception as e:
@@ -816,6 +809,12 @@ def main():
             st.error(f"Error saat melakukan prediksi: {str(e)}")
         finally:
             plt.close()
+        st.write(""" 
+            Insight:
+            1. Alokasi Sepeda: Pastikan stok sepeda maksimal pada jam 7-9 dan 15-17 Bisa mengurangi jumlah sepeda yang tersedia pada jam 2-4
+            2. Maintenance: Jadwalkan pemeliharaan pada periode volume rendah (dini hari)
+            3. Staff: Tingkatkan staff support pada peak hours Kurangi staff pada periode volume rendah
+        """)
 
 if __name__ == "__main__":
     main()
@@ -921,6 +920,7 @@ def main():
             low_anomalies[['dteday', 'hr', 'cnt', 'weathersit', 'temp', 'hum']]
             .sort_values('cnt', ascending=True)
         )
+        st.write("""pada jam 8, 11-19 sering terjadi anomali jumlah peminjaman dimana anomali tersebut termasuk pada anomali high atau lonjakan pengunjung, dapat diupayakan bahwa sepeda ready pada jam tersebut sehingga dapat mengatasi lonjakan signifikan pada peminjaman sepeda.""" )
 
 if __name__ == "__main__":
     main()
