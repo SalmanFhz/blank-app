@@ -692,16 +692,21 @@ if __name__ == '__main__':
 
 
 #Forecasting
-# Fungsi untuk load data
 @st.cache_data
 def load_data():
-    data = pd.read_csv("hour.csv")
-    # Konversi ke datetime jika perlu
-    # data['datetime'] = pd.to_datetime(data['datetime'])
-    return data
+    """Memuat data dari file CSV dan mengembalikannya sebagai DataFrame."""
+    try:
+        data = pd.read_csv("hour.csv")
+        # Validasi apakah kolom 'cnt' ada
+        if 'cnt' not in data.columns:
+            raise ValueError("Kolom 'cnt' tidak ditemukan di dataset.")
+        return data
+    except Exception as e:
+        raise ValueError(f"Gagal memuat data: {str(e)}")
 
 # Fungsi untuk membuat plot
 def create_plot(actual_values, predicted_values):
+    """Membuat plot perbandingan data aktual dan prediksi."""
     plt.figure(figsize=(12, 6))
     hours = range(24)
     
@@ -710,13 +715,15 @@ def create_plot(actual_values, predicted_values):
     
     plt.title('Perbandingan Data Aktual vs Prediksi (24 Jam)')
     plt.xlabel('Jam ke-')
-    plt.ylabel('Jumlah Peminjaman')
+    plt.ylabel('Jumlah Peminjaman Sepeda')
     plt.grid(True, alpha=0.3)
     plt.legend()
     plt.xticks(hours)
+    plt.tight_layout()
     
     return plt
 
+# Fungsi utama
 def main():
     st.title("Prediksi Jumlah Peminjaman Sepeda dengan SARIMA")
     
