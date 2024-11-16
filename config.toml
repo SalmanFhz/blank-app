@@ -1,16 +1,28 @@
-# config.toml
-
-# Batasi ulang halaman setiap kali terjadi perubahan
 [server]
-headless = true                # Wajib diaktifkan saat deploy di Streamlit Cloud
-maxUploadSize = 200            # Mengatur ukuran maksimal file upload (dalam MB)
+headless = true             # Wajib untuk deployment
+maxUploadSize = 50         # Turunkan ke 50MB karena data time series biasanya tidak terlalu besar
+enableCORS = false         # Nonaktifkan CORS untuk performa
+enableXsrfProtection = false  # Nonaktifkan XSRF untuk performa
 
-# Caching
 [cache]
-# Aktifkan cache untuk menghindari pengunduhan atau pemrosesan data yang berulang
-persist = true                 # Simpan cache secara persist untuk mempercepat akses ulang
-max_entries = 100              # Atur batas jumlah cache yang disimpan
+persist = true            # Pertahankan cache
+max_entries = 50          # Turunkan jumlah cache entries
+ttl = 1800               # Cache timeout 30 menit (dalam detik)
 
-# Pengaturan Memori
 [runner]
-memoryLimit = 2.0              # Batas memori maksimum (dalam GB, sesuaikan dengan resource)
+# Batasi penggunaan memori untuk mencegah OOM
+memoryLimit = 1.0        # Turunkan ke 1GB
+# Batasi jumlah proses
+maxNumberProcesses = 1    # Batasi ke 1 proses
+# Timeout untuk proses lama
+processTimeout = 180     # 3 menit timeout
+
+[theme]
+primaryColor = "#FF4B4B"  # Warna tema (opsional)
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F0F2F6"
+textColor = "#262730"
+
+[logger]
+level = "info"           # Level logging untuk debugging
+messageFormat = "%(asctime)s %(message)s"
