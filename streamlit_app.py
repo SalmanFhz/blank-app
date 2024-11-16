@@ -697,7 +697,7 @@ if __name__ == '__main__':
 def load_data():
     """Memuat data dari file CSV dan mengembalikannya sebagai DataFrame."""
     try:
-        data = pd.read_csv("D:/statistika/data_simulasi/blank-app-main/hour.csv")
+        data = pd.read_csv("hour.csv")
         if 'cnt' not in data.columns:
             raise ValueError("Kolom 'cnt' tidak ditemukan di dataset.")
         return data
