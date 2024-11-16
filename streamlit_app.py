@@ -692,11 +692,12 @@ if __name__ == '__main__':
 
 
 #Forecasting
+@st.cache_data
 def load_data():
     data = pd.read_csv("hour.csv")
-    # st.write("Kolom yang tersedia dalam dataset:", list(data.columns))  # Menampilkan daftar kolom
     return data.dropna(axis=1)
 
+@st.cache_data
 def detect_outliers_iqr(data, column):
     Q1 = data[column].quantile(0.25)
     Q3 = data[column].quantile(0.75)
@@ -706,6 +707,13 @@ def detect_outliers_iqr(data, column):
     outliers = data[(data[column] < lower_bound) | (data[column] > upper_bound)]
     normal = data[(data[column] >= lower_bound) & (data[column] <= upper_bound)]
     return outliers, normal, lower_bound, upper_bound
+
+@st.cache_resource
+def train_model(ts, p, d, q, seasonal_p, seasonal_d, seasonal_q):
+    model = SARIMAX(ts, 
+                    order=(p, d, q), 
+                    seasonal_order=(seasonal_p, seasonal_d, seasonal_q, 24))
+    return model.fit(disp=False)
 
 def create_prediction_plot(actual_values, predicted_values):
     plt.figure(figsize=(12, 6))
@@ -762,16 +770,12 @@ def main():
             # Prepare time series data
             ts = data_clean['cnt']
             
-            # Train SARIMAX model
-            model = SARIMAX(ts, 
-                          order=(p, d, q), 
-                          seasonal_order=(seasonal_p, seasonal_d, seasonal_q, 24))
-            results = model.fit(disp=False)
+            # Train SARIMAX model menggunakan fungsi cached
+            results = train_model(ts, p, d, q, seasonal_p, seasonal_d, seasonal_q)
             
             # Make predictions
             forecast = results.get_forecast(steps=24)
             forecast_mean = forecast.predicted_mean
-            forecast_ci = forecast.conf_int()
             
             # Get actual values for comparison
             last_24_hours = data_clean.iloc[-24:]
