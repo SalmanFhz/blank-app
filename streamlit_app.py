@@ -822,47 +822,27 @@ if __name__ == "__main__":
  #anomali detection   
 def detect_anomalies_iqr(df, column='cnt', multiplier=1.5):
     """Detect anomalies using the IQR method, with additional check for low-activity anomalies below the mean."""
-    Q1 = df[column].quantile(0.25)  # First quartile (25th percentile)
-    Q3 = df[column].quantile(0.75)  # Third quartile (75th percentile)
-    IQR = Q3 - Q1  # Interquartile range (IQR)
-    mean_value = df[column].mean()  # Mean of the column
+    Q1 = df[column].quantile(0.25)
+    Q3 = df[column].quantile(0.75)
+    IQR = Q3 - Q1
+    mean_value = df[column].mean()
 
-    # Define the bounds for detecting anomalies
     lower_bound = Q1 - multiplier * IQR
     upper_bound = Q3 + multiplier * IQR
 
-    # Copy the dataframe and create a column to indicate anomalies
     results = df.copy()
     results['is_anomaly'] = False
     results.loc[results[column] > upper_bound, 'is_anomaly'] = True
     results.loc[(results[column] < lower_bound) & (results[column] < mean_value), 'is_anomaly'] = True
 
-    # Label the type of anomaly (high or low)
     results['anomaly_type'] = 'normal'
     results.loc[results[column] > upper_bound, 'anomaly_type'] = 'high_activity'
     results.loc[(results[column] < lower_bound) & (results[column] < mean_value), 'anomaly_type'] = 'low_activity'
 
-    # Add bounds columns for reference
     results['lower_bound'] = lower_bound
     results['upper_bound'] = upper_bound
 
     return results
-
-
-
-# Example usage
-if __name__ == "__main__":
-    # Add file uploader
-    st.sidebar.title('Upload Data')
-    uploaded_file = st.sidebar.file_uploader("Upload file CSV anomali", type=['csv'])
-    
-    if uploaded_file is not None:
-        # Read the uploaded file
-        all_anomalies = pd.read_csv(uploaded_file)
-        create_anomaly_visualizations(all_anomalies)
-    else:
-        st.info('Silakan upload file CSV yang berisi data anomali')
-
 
 def main():
     # Title
@@ -873,12 +853,14 @@ def main():
     multiplier = st.sidebar.slider("IQR Multiplier", 1.0, 3.0, 1.5, 0.1,
                                  help="Adjust sensitivity of anomaly detection. Lower values detect more anomalies.")
 
-    # Load the real data
-    # Replace 'bike_rentals.csv' with the path to your actual dataset
+    # Load data
     all_df = pd.read_csv('hour.csv')
     
     # Detect anomalies
     results = detect_anomalies_iqr(all_df, multiplier=multiplier)
+    
+    # Get anomaly data
+    anomaly_data = results[results['is_anomaly']]
     
     # Display summary metrics in columns
     col1, col2, col3, col4 = st.columns(4)
@@ -891,35 +873,47 @@ def main():
     with col4:
         st.metric("Low Activity Anomalies", (results['anomaly_type'] == 'low_activity').sum())
     
-    # Create visualization
-    st.subheader("Rental Pattern and Anomalies")
+    # Create two columns for visualizations
+    col_scatter, col_box = st.columns(2)
     
-    fig, ax = plt.subplots(figsize=(15, 8))
+    with col_scatter:
+        st.subheader("Rental Pattern and Anomalies")
+        fig1, ax1 = plt.subplots(figsize=(10, 6))
+        
+        # Plot normal points
+        normal_data = results[~results['is_anomaly']]
+        ax1.scatter(normal_data.index, normal_data['cnt'], color='blue', label='Normal', alpha=0.5, s=20)
+        
+        # Plot high anomalies
+        high_anomalies = results[results['anomaly_type'] == 'high_activity']
+        ax1.scatter(high_anomalies.index, high_anomalies['cnt'], color='red', label='High Activity Anomaly', marker='*', s=100)
+        
+        # Plot low anomalies
+        low_anomalies = results[results['anomaly_type'] == 'low_activity']
+        ax1.scatter(low_anomalies.index, low_anomalies['cnt'], color='orange', label='Low Activity Anomaly', marker='*', s=100)
+        
+        # Plot bounds
+        ax1.axhline(y=results['upper_bound'].iloc[0], color='red', linestyle='--', label='Upper Bound')
+        ax1.axhline(y=results['lower_bound'].iloc[0], color='orange', linestyle='--', label='Lower Bound')
+        
+        plt.title('Bike Rentals Over Time with Anomalies')
+        plt.xlabel('Data Point')
+        plt.ylabel('Number of Rentals')
+        plt.legend()
+        plt.grid(True, alpha=0.3)
+        st.pyplot(fig1)
     
-    # Plot normal points
-    normal_data = results[~results['is_anomaly']]
-    ax.scatter(normal_data.index, normal_data['cnt'], color='blue', label='Normal', alpha=0.5, s=20)
+    with col_box:
+        st.subheader('Box Plot Distribusi per Jam')
+        fig2, ax2 = plt.subplots(figsize=(10, 6))
+        # Use anomaly_data for boxplot
+        sns.boxplot(data=anomaly_data, x='hr', y='cnt', ax=ax2)
+        ax2.set_title('Distribusi Jumlah Peminjaman Anomali per Jam')
+        ax2.set_xlabel('Jam')
+        ax2.set_ylabel('Jumlah Peminjaman')
+        ax2.grid(True, linestyle='--', alpha=0.3)
+        st.pyplot(fig2)
     
-    # Plot high anomalies
-    high_anomalies = results[results['anomaly_type'] == 'high_activity']
-    ax.scatter(high_anomalies.index, high_anomalies['cnt'], color='red', label='High Activity Anomaly', marker='*', s=100)
-    
-    # Plot low anomalies
-    low_anomalies = results[results['anomaly_type'] == 'low_activity']
-    ax.scatter(low_anomalies.index, low_anomalies['cnt'], color='orange', label='Low Activity Anomaly', marker='*', s=100)
-    
-    # Plot bounds
-    ax.axhline(y=results['upper_bound'].iloc[0], color='red', linestyle='--', label='Upper Bound')
-    ax.axhline(y=results['lower_bound'].iloc[0], color='orange', linestyle='--', label='Lower Bound')
-    
-    plt.title('Bike Rentals Over Time with Anomalies')
-    plt.xlabel('Data Point')
-    plt.ylabel('Number of Rentals')
-    plt.legend()
-    plt.grid(True, alpha=0.3)
-    
-    # Display plot
-    st.pyplot(fig)
     st.write("""pada jam 8, 11-19 sering terjadi anomali jumlah peminjaman dimana anomali tersebut termasuk pada anomali high atau lonjakan pengunjung, dapat diupayakan bahwa sepeda ready pada jam tersebut sehingga dapat mengatasi lonjakan signifikan pada peminjaman sepeda.""")
     
     # Display anomaly details in tabs
@@ -936,67 +930,9 @@ def main():
             low_anomalies[['dteday', 'hr', 'cnt', 'weathersit', 'temp', 'hum']]
             .sort_values('cnt', ascending=True)
         )
-        
 
 if __name__ == "__main__":
     main()
-
-
-
-all_anomalies = df  # pastikan df sudah diimport atau didefinisikan sebelumnya
-
-st.set_page_config(layout="wide")  # Menggunakan layout lebar
-st.title('Visualisasi Data Anomali Peminjaman')
-
-if 'all_anomalies' in locals():  # Memeriksa apakah data tersedia
-    # Create two columns for the visualizations
-    col1, col2 = st.columns(2)
-
-    with col1:
-        st.subheader('Scatter Plot Anomali')
-        
-        # Create scatter plot
-        fig1, ax1 = plt.subplots(figsize=(10, 6))
-        ax1.scatter(all_anomalies['hr'], all_anomalies['cnt'],
-                   s=100, c='red', alpha=0.6, label='Anomali')
-        ax1.set_xlabel('Jam')
-        ax1.set_ylabel('Jumlah Peminjaman')
-        ax1.grid(True, linestyle='--', alpha=0.3)
-        ax1.legend()
-        
-        # Display the plot
-        st.pyplot(fig1)
-        
-    with col2:
-        st.subheader('Box Plot Distribusi per Jam')
-        
-        # Create box plot
-        fig2, ax2 = plt.subplots(figsize=(10, 6))
-        sns.boxplot(data=all_anomalies, x='hr', y='cnt', ax=ax2)
-        ax2.set_title('Distribusi Jumlah Peminjaman Anomali per Jam')
-        ax2.set_xlabel('Jam')
-        ax2.set_ylabel('Jumlah Peminjaman')
-        ax2.grid(True, linestyle='--', alpha=0.3)
-        
-        # Display the plot
-        st.pyplot(fig2)
-
-    # Add some statistics
-    st.subheader('Statistik Anomali')
-    col3, col4, col5 = st.columns(3)
-
-    with col3:
-        st.metric('Total Anomali', len(all_anomalies))
-    with col4:
-        st.metric('Rata-rata Peminjaman', f"{all_anomalies['cnt'].mean():.2f}")
-    with col5:
-        st.metric('Maksimum Peminjaman', all_anomalies['cnt'].max())
-
-    # Add interactive data table
-    st.subheader('Data Anomali')
-    st.dataframe(all_anomalies)
-else:
-    st.error("Data tidak tersedia. Pastikan DataFrame 'all_anomalies' atau 'df' sudah didefinisikan.")
 
 
 # Footer
