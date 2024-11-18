@@ -900,15 +900,18 @@ def create_anomaly_visualizations(all_anomalies):
     st.dataframe(all_anomalies)
 
 # Example usage
-def main():
-    # Assuming you have a DataFrame named 'all_anomalies'
-    # Replace this with your actual DataFrame
-    all_anomalies = df  # Use your existing DataFrame
-    
-    create_anomaly_visualizations(all_anomalies)
-
 if __name__ == "__main__":
-    main()
+    # Add file uploader
+    st.sidebar.title('Upload Data')
+    uploaded_file = st.sidebar.file_uploader("Upload file CSV anomali", type=['csv'])
+    
+    if uploaded_file is not None:
+        # Read the uploaded file
+        all_anomalies = pd.read_csv(uploaded_file)
+        create_anomaly_visualizations(all_anomalies)
+    else:
+        st.info('Silakan upload file CSV yang berisi data anomali')
+        
 
 
 
