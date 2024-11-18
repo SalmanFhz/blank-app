@@ -900,6 +900,20 @@ def create_anomaly_visualizations(all_anomalies):
     st.dataframe(all_anomalies)
 
 # Example usage
+def main():
+    # Assuming you have a DataFrame named 'all_anomalies'
+    # Replace this with your actual DataFrame
+    all_anomalies = df  # Use your existing DataFrame
+    
+    create_anomaly_visualizations(all_anomalies)
+
+if __name__ == "__main__":
+    main()
+
+
+
+
+# Example usage
 if __name__ == "__main__":
     # Add file uploader
     st.sidebar.title('Upload Data')
