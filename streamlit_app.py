@@ -849,68 +849,54 @@ def detect_anomalies_iqr(df, column='cnt', multiplier=1.5):
     return results
 
 ##baruuuu
-def create_anomaly_visualizations(all_anomalies):
-    st.title('Visualisasi Data Anomali Peminjaman')
-    
-    # Create two columns for the visualizations
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.subheader('Scatter Plot Anomali')
-        
-        # Create scatter plot
-        fig1, ax1 = plt.subplots(figsize=(10, 6))
-        ax1.scatter(all_anomalies['hr'], all_anomalies['cnt'],
-                   s=100, c='red', alpha=0.6, label='Anomali')
-        ax1.set_xlabel('Jam')
-        ax1.set_ylabel('Jumlah Peminjaman')
-        ax1.grid(True, linestyle='--', alpha=0.3)
-        ax1.legend()
-        
-        # Display the plot
-        st.pyplot(fig1)
-        
-    with col2:
-        st.subheader('Box Plot Distribusi per Jam')
-        
-        # Create box plot
-        fig2, ax2 = plt.subplots(figsize=(10, 6))
-        sns.boxplot(data=all_anomalies, x='hr', y='cnt', ax=ax2)
-        ax2.set_title('Distribusi Jumlah Peminjaman Anomali per Jam')
-        ax2.set_xlabel('Jam')
-        ax2.set_ylabel('Jumlah Peminjaman')
-        ax2.grid(True, linestyle='--', alpha=0.3)
-        
-        # Display the plot
-        st.pyplot(fig2)
-    
-    # Add some statistics
-    st.subheader('Statistik Anomali')
-    col3, col4, col5 = st.columns(3)
-    
-    with col3:
-        st.metric('Total Anomali', len(all_anomalies))
-    with col4:
-        st.metric('Rata-rata Peminjaman', f"{all_anomalies['cnt'].mean():.2f}")
-    with col5:
-        st.metric('Maksimum Peminjaman', all_anomalies['cnt'].max())
-    
-    # Add interactive data table
-    st.subheader('Data Anomali')
-    st.dataframe(all_anomalies)
+st.title('Visualisasi Data Anomali Peminjaman')
 
-# Example usage
-if __name__ == "__main__":
-    # Add file uploader
-    st.sidebar.title('Upload Data')
-    uploaded_file = st.sidebar.file_uploader("Upload file CSV anomali", type=['csv'])
+# Create two columns for the visualizations
+col1, col2 = st.columns(2)
+
+with col1:
+    st.subheader('Scatter Plot Anomali')
     
-    if uploaded_file is not None:
-        # Read the uploaded file
-        all_anomalies = pd.read_csv(uploaded_file)
-        create_anomaly_visualizations(all_anomalies)
-    else:
-        st.info('Silakan upload file CSV yang berisi data anomali')
+    # Create scatter plot
+    fig1, ax1 = plt.subplots(figsize=(10, 6))
+    ax1.scatter(all_anomalies['hr'], all_anomalies['cnt'],
+               s=100, c='red', alpha=0.6, label='Anomali')
+    ax1.set_xlabel('Jam')
+    ax1.set_ylabel('Jumlah Peminjaman')
+    ax1.grid(True, linestyle='--', alpha=0.3)
+    ax1.legend()
+    
+    # Display the plot
+    st.pyplot(fig1)
+    
+with col2:
+    st.subheader('Box Plot Distribusi per Jam')
+    
+    # Create box plot
+    fig2, ax2 = plt.subplots(figsize=(10, 6))
+    sns.boxplot(data=all_anomalies, x='hr', y='cnt', ax=ax2)
+    ax2.set_title('Distribusi Jumlah Peminjaman Anomali per Jam')
+    ax2.set_xlabel('Jam')
+    ax2.set_ylabel('Jumlah Peminjaman')
+    ax2.grid(True, linestyle='--', alpha=0.3)
+    
+    # Display the plot
+    st.pyplot(fig2)
+
+# Add some statistics
+st.subheader('Statistik Anomali')
+col3, col4, col5 = st.columns(3)
+
+with col3:
+    st.metric('Total Anomali', len(all_anomalies))
+with col4:
+    st.metric('Rata-rata Peminjaman', f"{all_anomalies['cnt'].mean():.2f}")
+with col5:
+    st.metric('Maksimum Peminjaman', all_anomalies['cnt'].max())
+
+# Add interactive data table
+st.subheader('Data Anomali')
+st.dataframe(all_anomalies)
         
 
 
